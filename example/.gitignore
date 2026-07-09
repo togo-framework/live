@@ -1,0 +1,13 @@
+# build artifacts
+/live-example
+/live-example-bin
+
+# local SQLite databases created at runtime
+*.db
+*.db-shm
+*.db-wal
+
+# Playwright / node
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/

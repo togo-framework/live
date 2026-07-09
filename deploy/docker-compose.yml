@@ -1,0 +1,30 @@
+# Deploy a live agent anywhere with Docker. It self-registers with your togo app
+# and answers prompts through the live MCP bridge.
+#
+#   ANTHROPIC_API_KEY=sk-... LIVE_API_URL=https://app.example.com \
+#     docker compose -f deploy/docker-compose.yml up -d
+#
+# Scale to N independent agents:  docker compose up -d --scale agent=3
+services:
+  agent:
+    image: node:22-bookworm           # has node+npm; go is installed on boot
+    working_dir: /work
+    restart: unless-stopped
+    environment:
+      LIVE_API_URL: "${LIVE_API_URL:?set LIVE_API_URL}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY for headless claude}"
+      LIVE_AGENT_NAME: "${LIVE_AGENT_NAME:-}"
+      LIVE_AGENT_PERSONA: "${LIVE_AGENT_PERSONA:-a helpful live agent}"
+      LIVE_AGENT_PROVIDER: "claude"
+      LIVE_POLL_SECONDS: "${LIVE_POLL_SECONDS:-5}"
+      LIVE_WORK_DIR: "/work"
+    volumes:
+      - ./scripts:/scripts:ro
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        command -v go >/dev/null || (apt-get update && apt-get install -y golang-go jq curl)
+        bash /scripts/agent-boot.sh
+        exec bash /scripts/agent-loop.sh

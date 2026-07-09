@@ -1,0 +1,16 @@
+# Go
+*.exe
+*.test
+*.out
+/bin/
+/dist/
+# local db / env
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.local
+# node (examples/e2e)
+node_modules/
+test-results/
+playwright-report/

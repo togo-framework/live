@@ -1,0 +1,115 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>togo · live agents</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --bg:#0b0d10; --panel:#14181d; --line:#232a31; --fg:#e7edf3; --mut:#8a97a6; --acc:#ff6b2c; --agent:#1c2530; --user:#243447; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); height:100vh; display:grid; grid-template-columns:280px 1fr; }
+  aside { border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  aside header { padding:14px 16px; border-bottom:1px solid var(--line); font-weight:700; letter-spacing:.3px; }
+  aside header b { color:var(--acc); }
+  #convs { overflow:auto; flex:1; }
+  .conv { padding:11px 16px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .conv:hover { background:var(--panel); }
+  .conv.active { background:var(--panel); border-left:3px solid var(--acc); }
+  .conv .t { font-weight:600; }
+  .conv .m { color:var(--mut); font-size:12px; }
+  main { display:flex; flex-direction:column; min-height:0; }
+  main header { padding:12px 18px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; }
+  #log { flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:70%; padding:9px 13px; border-radius:12px; white-space:pre-wrap; word-wrap:break-word; }
+  .msg.user { align-self:flex-end; background:var(--user); }
+  .msg.agent { align-self:flex-start; background:var(--agent); }
+  .who { font-size:11px; color:var(--mut); margin-bottom:2px; }
+  form { display:flex; gap:8px; padding:14px 18px; border-top:1px solid var(--line); }
+  input,select,button,textarea { font:inherit; color:var(--fg); background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px 11px; }
+  #box { flex:1; resize:none; }
+  button { background:var(--acc); border-color:var(--acc); color:#111; font-weight:600; cursor:pointer; }
+  button.ghost { background:var(--panel); color:var(--fg); }
+  .row { display:flex; gap:8px; padding:10px 16px; border-bottom:1px solid var(--line); }
+  .row input,.row select { flex:1; }
+  #typing { color:var(--mut); font-size:12px; padding:0 18px 8px; height:18px; }
+  .empty { color:var(--mut); text-align:center; margin:auto; }
+</style>
+<aside>
+  <header>togo · <b>live</b></header>
+  <div class="row">
+    <select id="agent"></select>
+    <button class="ghost" id="new">+ chat</button>
+  </div>
+  <div id="convs"></div>
+</aside>
+<main>
+  <header><b id="title">Select a conversation</b><span id="who" class="mut"></span></header>
+  <div id="log"><div class="empty">Pick a conversation, or start a new one.</div></div>
+  <div id="typing"></div>
+  <form id="send">
+    <textarea id="box" rows="1" placeholder="Message the agent…  (Enter to send)"></textarea>
+    <button>Send</button>
+  </form>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let cur = null, ws = null, agents = [];
+
+async function api(path, opts){ const r = await fetch('/api/live'+path, opts); if(!r.ok) throw new Error((await r.json()).error||r.status); return r.json(); }
+
+async function loadAgents(){
+  agents = (await api('/agents')).agents || [];
+  $('#agent').innerHTML = agents.map(a=>`<option value="${a.id}">${a.name}</option>`).join('') || '<option>no agents</option>';
+}
+async function loadConvs(){
+  const cs = (await api('/conversations')).conversations || [];
+  $('#convs').innerHTML = cs.map(c=>`<div class="conv ${c.id===cur?'active':''}" data-id="${c.id}">
+    <div class="t">${c.title||'(untitled)'}</div><div class="m">${c.channel} · ${agentName(c.agent_id)}</div></div>`).join('');
+  document.querySelectorAll('.conv').forEach(el=>el.onclick=()=>open(el.dataset.id));
+}
+const agentName = id => (agents.find(a=>a.id===id)||{}).name || id;
+
+async function open(id){
+  cur = id; await loadConvs();
+  const c = await api('/conversations/'+id);
+  $('#title').textContent = c.title || 'Conversation';
+  $('#who').textContent = ' · '+agentName(c.agent_id);
+  const msgs = (await api('/conversations/'+id+'/messages')).messages || [];
+  $('#log').innerHTML = msgs.map(render).join('') || '<div class="empty">Say hi 👋</div>';
+  scroll();
+}
+function render(m){ return `<div class="msg ${m.role}"><div class="who">${m.role}</div>${escapeHtml(m.body)}</div>`; }
+function escapeHtml(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function scroll(){ const l=$('#log'); l.scrollTop=l.scrollHeight; }
+
+$('#new').onclick = async()=>{
+  const agent_id = $('#agent').value; if(!agent_id) return alert('create an agent first (POST /api/live/agents)');
+  const title = prompt('Conversation title?','New chat'); if(title===null) return;
+  const c = await api('/conversations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({agent_id,title,channel:'chat'})});
+  await loadConvs(); open(c.id);
+};
+
+$('#send').onsubmit = async e=>{
+  e.preventDefault(); const box=$('#box'); const body=box.value.trim(); if(!body||!cur) return;
+  box.value='';
+  await api('/conversations/'+cur+'/messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({body})});
+  // optimistic render; the WS will deliver the stored copy + the reply
+  $('#log').insertAdjacentHTML('beforeend', render({role:'user',body})); scroll();
+};
+$('#box').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); $('#send').requestSubmit(); }});
+
+function connect(){
+  const proto = location.protocol==='https:'?'wss':'ws';
+  ws = new WebSocket(`${proto}://${location.host}/api/live/ws`);
+  ws.onmessage = ev=>{
+    const e = JSON.parse(ev.data);
+    if(e.type==='typing' && e.conversation_id===cur){ $('#typing').textContent = (e.agent||'agent')+' is typing…'; setTimeout(()=>$('#typing').textContent='',4000); return; }
+    if(e.type==='message.created' && e.conversation_id===cur){
+      $('#typing').textContent='';
+      const m=e.message; if(m.role==='user') return; // already shown optimistically
+      $('#log').insertAdjacentHTML('beforeend', render(m)); scroll();
+    }
+  };
+  ws.onclose = ()=>setTimeout(connect,1500);
+}
+
+(async()=>{ await loadAgents(); await loadConvs(); connect(); })();
+</script>

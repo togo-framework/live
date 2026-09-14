@@ -3,11 +3,12 @@
 <title>togo · live agents</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  :root { --bg:#0b0d10; --panel:#14181d; --line:#232a31; --fg:#e7edf3; --mut:#8a97a6; --acc:#ff6b2c; --agent:#1c2530; --user:#243447; }
+  /* ToGO on the grid (to-go.dev/brand): ink ground, hairlines, square surfaces, 6px controls, no shadows. */
+  :root { --bg:#0b1429; --panel:#0e1a3c; --line:#25355c; --fg:#c8d0e4; --mut:#8a97b8; --acc:#1F8A99; --acc-hover:#1a7684; --agent:#1a2747; --user:#18264a; }
   * { box-sizing:border-box; }
-  body { margin:0; font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); height:100vh; display:grid; grid-template-columns:280px 1fr; }
+  body { margin:0; font:15px/1.5 "Lusail",system-ui,sans-serif; background:var(--bg); color:var(--fg); height:100vh; display:grid; grid-template-columns:280px 1fr; }
   aside { border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
-  aside header { padding:14px 16px; border-bottom:1px solid var(--line); font-weight:700; letter-spacing:.3px; }
+  aside header { padding:14px 16px; border-bottom:1px solid var(--line); font-weight:500; letter-spacing:.3px; }
   aside header b { color:var(--acc); }
   #convs { overflow:auto; flex:1; }
   .conv { padding:11px 16px; border-bottom:1px solid var(--line); cursor:pointer; }
@@ -18,15 +19,17 @@
   main { display:flex; flex-direction:column; min-height:0; }
   main header { padding:12px 18px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center; }
   #log { flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; gap:10px; }
-  .msg { max-width:70%; padding:9px 13px; border-radius:12px; white-space:pre-wrap; word-wrap:break-word; }
+  .msg { max-width:70%; padding:9px 13px; border-radius:6px; white-space:pre-wrap; word-wrap:break-word; }
   .msg.user { align-self:flex-end; background:var(--user); }
   .msg.agent { align-self:flex-start; background:var(--agent); }
   .who { font-size:11px; color:var(--mut); margin-bottom:2px; }
   form { display:flex; gap:8px; padding:14px 18px; border-top:1px solid var(--line); }
-  input,select,button,textarea { font:inherit; color:var(--fg); background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px 11px; }
+  input,select,button,textarea { font:inherit; color:var(--fg); background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:9px 11px; }
   #box { flex:1; resize:none; }
-  button { background:var(--acc); border-color:var(--acc); color:#111; font-weight:600; cursor:pointer; }
+  button { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:500; cursor:pointer; transition:background-color .15s, border-color .15s; }
+  button:hover { background:var(--acc-hover); border-color:var(--acc-hover); }
   button.ghost { background:var(--panel); color:var(--fg); }
+  button.ghost:hover { background:var(--agent); }
   .row { display:flex; gap:8px; padding:10px 16px; border-bottom:1px solid var(--line); }
   .row input,.row select { flex:1; }
   #typing { color:var(--mut); font-size:12px; padding:0 18px 8px; height:18px; }
